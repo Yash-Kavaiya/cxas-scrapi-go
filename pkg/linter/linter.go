@@ -1,9 +1,13 @@
 package linter
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // LintReport summarises all findings from a linting run.
@@ -40,7 +44,7 @@ type Linter struct {
 // New creates a Linter using the default rule registry.
 func New(appRoot string, severityOverrides map[string]Severity) *Linter {
 	return &Linter{
-		registry: DefaultRegistry,
+		registry: NewDefaultRegistry(),
 		ctx:      &LintContext{AppRoot: appRoot, Severities: severityOverrides},
 	}
 }
@@ -61,12 +65,26 @@ func (l *Linter) LintFile(filePath string) ([]LintResult, error) {
 	}
 	content := string(data)
 
+	// Pre-parse JSON/YAML content once for all rules.
+	ext := strings.ToLower(filepath.Ext(filePath))
+	var parsed map[string]interface{}
+	if ext == ".json" {
+		json.Unmarshal(data, &parsed)
+	} else if ext == ".yaml" || ext == ".yml" {
+		yaml.Unmarshal(data, &parsed)
+	}
+	ctx := &LintContext{
+		AppRoot:       l.ctx.AppRoot,
+		Severities:    l.ctx.Severities,
+		ParsedContent: parsed,
+	}
+
 	var results []LintResult
 	for _, rule := range l.registry.All() {
-		if severityFor(l.ctx, rule.ID(), rule.DefaultSeverity()) == SeverityOff {
+		if severityFor(ctx, rule.ID(), rule.DefaultSeverity()) == SeverityOff {
 			continue
 		}
-		results = append(results, rule.Check(filePath, content, l.ctx)...)
+		results = append(results, rule.Check(filePath, content, ctx)...)
 	}
 	return results, nil
 }

@@ -12,8 +12,6 @@ import (
 	"github.com/GoogleCloudPlatform/cxas-go/pkg/common"
 )
 
-const apiVersion = "v1beta"
-
 // Client provides CRUD access to CXAS Apps.
 type Client struct {
 	projectID string
@@ -52,7 +50,7 @@ func (c *Client) url(path string) string {
 	if strings.HasPrefix(path, "http") {
 		return path
 	}
-	return fmt.Sprintf("%s/%s/%s", c.baseURL, apiVersion, path)
+	return fmt.Sprintf("%s/%s/%s", c.baseURL, httpclient.APIVersion, path)
 }
 
 // ListApps returns all Apps in the project/location.

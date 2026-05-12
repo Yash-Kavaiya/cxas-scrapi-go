@@ -7,6 +7,16 @@ import (
 	"github.com/GoogleCloudPlatform/cxas-go/pkg/migration/ir"
 )
 
+// xmlEscape escapes XML special characters in a string.
+func xmlEscape(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, "'", "&apos;")
+	s = strings.ReplaceAll(s, "\"", "&quot;")
+	return s
+}
+
 // PlaybookConverter converts DFCX playbooks to CXAS IRAgent entries.
 type PlaybookConverter struct {
 	DefaultModel string
@@ -45,16 +55,16 @@ func (c *PlaybookConverter) ConvertPlaybook(playbook map[string]interface{}) ir.
 
 func buildPlaybookInstruction(name, goal string, playbook map[string]interface{}) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("<agent name=\"%s\">\n", name))
+	sb.WriteString(fmt.Sprintf("<agent name=\"%s\">\n", xmlEscape(name)))
 	if goal != "" {
-		sb.WriteString(fmt.Sprintf("  <goal>%s</goal>\n", goal))
+		sb.WriteString(fmt.Sprintf("  <goal>%s</goal>\n", xmlEscape(goal)))
 	}
 	if steps, ok := playbook["steps"].([]interface{}); ok {
 		sb.WriteString("  <steps>\n")
 		for _, s := range steps {
 			if step, ok := s.(map[string]interface{}); ok {
 				text, _ := step["text"].(string)
-				sb.WriteString(fmt.Sprintf("    <step>%s</step>\n", text))
+				sb.WriteString(fmt.Sprintf("    <step>%s</step>\n", xmlEscape(text)))
 			}
 		}
 		sb.WriteString("  </steps>\n")

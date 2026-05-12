@@ -47,6 +47,8 @@ type LintContext struct {
 	AppRoot string
 	// Severities overrides default severity per rule ID.
 	Severities map[string]Severity
+	// ParsedContent is the pre-parsed JSON content, populated by LintFile.
+	ParsedContent map[string]interface{}
 }
 
 // Rule is the interface every lint rule must implement.
@@ -69,13 +71,20 @@ func (r *RuleRegistry) Register(rule Rule) { r.rules = append(r.rules, rule) }
 // All returns all registered rules.
 func (r *RuleRegistry) All() []Rule { return r.rules }
 
-// DefaultRegistry is the global registry pre-loaded with built-in rules.
-var DefaultRegistry = &RuleRegistry{}
+// defaultRules are the built-in lint rules.
+var defaultRules = []Rule{
+	&missingDisplayNameRule{},
+	&emptyInstructionRule{},
+	&longInstructionRule{},
+	&missingDescriptionRule{},
+	&evalFileStructureRule{},
+}
 
-func init() {
-	DefaultRegistry.Register(&missingDisplayNameRule{})
-	DefaultRegistry.Register(&emptyInstructionRule{})
-	DefaultRegistry.Register(&longInstructionRule{})
-	DefaultRegistry.Register(&missingDescriptionRule{})
-	DefaultRegistry.Register(&evalFileStructureRule{})
+// NewDefaultRegistry creates a RuleRegistry pre-loaded with all built-in rules.
+func NewDefaultRegistry() *RuleRegistry {
+	r := &RuleRegistry{}
+	for _, rule := range defaultRules {
+		r.Register(rule)
+	}
+	return r
 }

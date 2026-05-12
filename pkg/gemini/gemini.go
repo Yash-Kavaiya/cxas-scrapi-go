@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"net/http"
 	"time"
 
@@ -94,14 +94,13 @@ func (c *Client) GenerateWithRetry(ctx context.Context, req GenerateRequest, max
 	}
 	baseDelay := 10 * time.Second
 
-	if err := c.sem.Acquire(ctx, 1); err != nil {
-		return nil, err
-	}
-	defer c.sem.Release(1)
-
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
+		if err := c.sem.Acquire(ctx, 1); err != nil {
+			return nil, err
+		}
 		resp, err := c.Generate(ctx, req)
+		c.sem.Release(1)
 		if err == nil {
 			return resp, nil
 		}
@@ -110,7 +109,7 @@ func (c *Client) GenerateWithRetry(ctx context.Context, req GenerateRequest, max
 			return nil, err
 		}
 		delay := time.Duration(float64(baseDelay) * pow(1.5, float64(attempt)))
-		jitter := time.Duration(rand.Int63n(int64(delay / 4)))
+		jitter := time.Duration(rand.Int64N(int64(delay / 4)))
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()

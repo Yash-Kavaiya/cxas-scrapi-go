@@ -83,12 +83,36 @@ func (e *Exporter) listFlows(ctx context.Context, agentName string) ([]ir.DFCXFl
 	flows := make([]ir.DFCXFlowModel, len(resp.Flows))
 	for i, f := range resp.Flows {
 		name, _ := f["name"].(string)
+		pages, err := e.listPages(ctx, name)
+		if err != nil {
+			return nil, fmt.Errorf("list pages for flow %s: %w", name, err)
+		}
 		flows[i] = ir.DFCXFlowModel{
 			FlowID:   name,
 			FlowData: f,
+			Pages:    pages,
 		}
 	}
 	return flows, nil
+}
+
+func (e *Exporter) listPages(ctx context.Context, flowName string) ([]ir.DFCXPageModel, error) {
+	url := fmt.Sprintf("%s/%s/pages", dfcxBaseURL, flowName)
+	var resp struct {
+		Pages []map[string]interface{} `json:"pages"`
+	}
+	if err := httpclient.DoJSON(ctx, e.httpClient, "GET", url, nil, &resp); err != nil {
+		return nil, err
+	}
+	pages := make([]ir.DFCXPageModel, len(resp.Pages))
+	for i, p := range resp.Pages {
+		name, _ := p["name"].(string)
+		pages[i] = ir.DFCXPageModel{
+			PageID:   name,
+			PageData: p,
+		}
+	}
+	return pages, nil
 }
 
 func (e *Exporter) listPlaybooks(ctx context.Context, agentName string) ([]map[string]interface{}, error) {

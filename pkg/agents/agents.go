@@ -11,8 +11,6 @@ import (
 	"github.com/GoogleCloudPlatform/cxas-go/pkg/common"
 )
 
-const apiVersion = "v1beta"
-
 // Client provides CRUD access to CXAS Agents within an App.
 type Client struct {
 	appName string
@@ -43,7 +41,7 @@ func NewClient(ctx context.Context, appName string, cfg auth.Config, opts ...cli
 }
 
 func (c *Client) url(path string) string {
-	return fmt.Sprintf("%s/%s/%s", c.baseURL, apiVersion, path)
+	return fmt.Sprintf("%s/%s/%s", c.baseURL, httpclient.APIVersion, path)
 }
 
 // ListAgents returns all agents in the App.

@@ -1,4 +1,6 @@
-// Package gemini provides a client for generating text using Google's Gemini models via Vertex AI.
+// Package gemini provides a rate-limited client for Google Vertex AI Gemini
+// model inference. It supports synchronous generation with structured output,
+// exponential backoff retry on quota errors, and configurable concurrency limits.
 package gemini
 
 // GenerateRequest holds parameters for a single generation call.

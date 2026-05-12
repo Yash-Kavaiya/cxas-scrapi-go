@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"golang.org/x/sync/errgroup"
 
@@ -45,6 +46,7 @@ type MigrationService struct {
 	cfg      MigrationConfig
 	authCfg  auth.Config
 	exporter *dfcx.Exporter
+	mu       sync.Mutex
 }
 
 // New creates a MigrationService.
@@ -131,8 +133,10 @@ func (s *MigrationService) deployTools(ctx context.Context, migIR *ir.MigrationI
 			if err != nil {
 				return fmt.Errorf("create tool %s: %w", id, err)
 			}
+			s.mu.Lock()
 			t.Status = ir.StatusDeployed
 			migIR.Tools[id] = t
+			s.mu.Unlock()
 			_ = created
 			result.ToolCount++
 			return nil
@@ -162,9 +166,11 @@ func (s *MigrationService) deployAgents(ctx context.Context, migIR *ir.Migration
 			if err != nil {
 				return fmt.Errorf("create agent %s: %w", id, err)
 			}
+			s.mu.Lock()
 			a.Status = ir.StatusDeployed
 			a.ResourceName = created.Name
 			migIR.Agents[id] = a
+			s.mu.Unlock()
 			result.AgentCount++
 			return nil
 		})

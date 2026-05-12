@@ -10,8 +10,6 @@ import (
 	"github.com/GoogleCloudPlatform/cxas-go/internal/resource"
 )
 
-const apiVersion = "v1beta"
-
 // Client provides access to CXAS text-mode session execution.
 type Client struct {
 	http    *http.Client
@@ -40,7 +38,7 @@ func NewClient(ctx context.Context, cfg auth.Config, opts ...clientOption) (*Cli
 }
 
 func (c *Client) url(path string) string {
-	return fmt.Sprintf("%s/%s/%s", c.baseURL, apiVersion, path)
+	return fmt.Sprintf("%s/%s/%s", c.baseURL, httpclient.APIVersion, path)
 }
 
 // Run executes a single text-mode session turn and returns the parsed output.
@@ -50,7 +48,7 @@ func (c *Client) Run(ctx context.Context, req RunSessionRequest) (*SessionOutput
 
 	var raw map[string]interface{}
 	if err := httpclient.DoJSON(ctx, c.http, "POST", c.url(sessionName+":run"), body, &raw); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("run session %s: %w", sessionName, err)
 	}
 	return parseSessionOutput(raw), nil
 }

@@ -20,6 +20,8 @@ const (
 )
 
 // BidiSession manages a WebSocket bidirectional session for streaming audio.
+// Use NewBidiSession to create a session, SendText/SendAudio to send input,
+// Outputs to retrieve received messages, and Close to terminate.
 type BidiSession struct {
 	cfg     BidiConfig
 	conn    *websocket.Conn
@@ -118,7 +120,10 @@ func (s *BidiSession) receiveLoop() {
 		}
 		var msg map[string]interface{}
 		if err := json.Unmarshal(data, &msg); err != nil {
-			continue
+			s.mu.Lock()
+			s.recvErr = fmt.Errorf("malformed message: %w", err)
+			s.mu.Unlock()
+			return
 		}
 		s.mu.Lock()
 		s.outputs = append(s.outputs, msg)

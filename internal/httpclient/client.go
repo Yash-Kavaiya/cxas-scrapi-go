@@ -126,9 +126,16 @@ func DoJSON(ctx context.Context, client *http.Client, method, url string, body, 
 	}
 	defer resp.Body.Close()
 
-	rawBody, _ := io.ReadAll(resp.Body)
+	rawBody, readErr := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return &APIError{StatusCode: resp.StatusCode, Body: string(rawBody), URL: url}
+		bodyStr := ""
+		if readErr == nil {
+			bodyStr = string(rawBody)
+		}
+		return &APIError{StatusCode: resp.StatusCode, Body: bodyStr, URL: url}
+	}
+	if readErr != nil {
+		return fmt.Errorf("read response body: %w", readErr)
 	}
 	if out != nil && len(rawBody) > 0 {
 		if err := json.Unmarshal(rawBody, out); err != nil {

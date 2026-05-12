@@ -5,6 +5,16 @@ import (
 	"strings"
 )
 
+// parsedContent returns the pre-parsed content, or attempts a fresh parse if missing.
+func parsedContent(ctx *LintContext, content string) map[string]interface{} {
+	if ctx != nil && ctx.ParsedContent != nil {
+		return ctx.ParsedContent
+	}
+	var m map[string]interface{}
+	json.Unmarshal([]byte(content), &m)
+	return m
+}
+
 // missingDisplayNameRule checks that every resource has a displayName.
 type missingDisplayNameRule struct{}
 
@@ -14,8 +24,8 @@ func (r *missingDisplayNameRule) Category() string        { return "structure" }
 func (r *missingDisplayNameRule) DefaultSeverity() Severity { return SeverityError }
 
 func (r *missingDisplayNameRule) Check(filePath, content string, ctx *LintContext) []LintResult {
-	var m map[string]interface{}
-	if err := json.Unmarshal([]byte(content), &m); err != nil {
+	m := parsedContent(ctx, content)
+	if m == nil {
 		return nil
 	}
 	if dn, ok := m["displayName"].(string); !ok || strings.TrimSpace(dn) == "" {
@@ -39,8 +49,8 @@ func (r *emptyInstructionRule) Category() string        { return "instructions" 
 func (r *emptyInstructionRule) DefaultSeverity() Severity { return SeverityWarning }
 
 func (r *emptyInstructionRule) Check(filePath, content string, ctx *LintContext) []LintResult {
-	var m map[string]interface{}
-	if err := json.Unmarshal([]byte(content), &m); err != nil {
+	m := parsedContent(ctx, content)
+	if m == nil {
 		return nil
 	}
 	if _, isLLM := m["llmAgent"]; !isLLM {
@@ -67,8 +77,8 @@ func (r *longInstructionRule) Category() string        { return "instructions" }
 func (r *longInstructionRule) DefaultSeverity() Severity { return SeverityWarning }
 
 func (r *longInstructionRule) Check(filePath, content string, ctx *LintContext) []LintResult {
-	var m map[string]interface{}
-	if err := json.Unmarshal([]byte(content), &m); err != nil {
+	m := parsedContent(ctx, content)
+	if m == nil {
 		return nil
 	}
 	inst, _ := m["instruction"].(string)
@@ -93,8 +103,8 @@ func (r *missingDescriptionRule) Category() string        { return "structure" }
 func (r *missingDescriptionRule) DefaultSeverity() Severity { return SeverityInfo }
 
 func (r *missingDescriptionRule) Check(filePath, content string, ctx *LintContext) []LintResult {
-	var m map[string]interface{}
-	if err := json.Unmarshal([]byte(content), &m); err != nil {
+	m := parsedContent(ctx, content)
+	if m == nil {
 		return nil
 	}
 	// Only check tools/toolsets (files with openApiSpec or openApiYaml).
@@ -127,17 +137,43 @@ func (r *evalFileStructureRule) Check(filePath, content string, ctx *LintContext
 	if !strings.HasSuffix(filePath, ".yaml") && !strings.HasSuffix(filePath, ".yml") {
 		return nil
 	}
-	// Very lightweight check: file must contain "turns:" or "conversations:" or "tests:"
-	if !strings.Contains(content, "turns:") && !strings.Contains(content, "conversations:") && !strings.Contains(content, "tests:") {
+	m := parsedContent(ctx, content)
+	if m == nil {
+		// Not valid YAML — not an eval file, skip.
 		return nil
 	}
-	if !strings.Contains(content, "input:") {
-		return []LintResult{{
-			File:     filePath,
-			RuleID:   r.ID(),
-			Severity: severityFor(ctx, r.ID(), r.DefaultSeverity()),
-			Message:  "eval file appears to have no turns with 'input' fields",
-		}}
+	// Use the parsed YAML to check for eval-specific keys.
+	hasTurns := false
+	for _, key := range []string{"turns", "conversations", "tests"} {
+		if _, ok := m[key]; ok {
+			hasTurns = true
+			break
+		}
+	}
+	if !hasTurns {
+		return nil
+	}
+	if _, ok := m["input"]; !ok {
+		// Check nested: turns[0].input
+		found := false
+		for _, key := range []string{"turns", "conversations", "tests"} {
+			if turns, ok := m[key].([]interface{}); ok && len(turns) > 0 {
+				if first, ok := turns[0].(map[string]interface{}); ok {
+					if _, has := first["input"]; has {
+						found = true
+						break
+					}
+				}
+			}
+		}
+		if !found {
+			return []LintResult{{
+				File:     filePath,
+				RuleID:   r.ID(),
+				Severity: severityFor(ctx, r.ID(), r.DefaultSeverity()),
+				Message:  "eval file appears to have no turns with 'input' fields",
+			}}
+		}
 	}
 	return nil
 }

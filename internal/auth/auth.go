@@ -3,6 +3,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"golang.org/x/oauth2"
@@ -36,7 +37,7 @@ func NewTokenSource(ctx context.Context, cfg Config) (oauth2.TokenSource, error)
 	if cfg.CredsPath != "" {
 		data, err := os.ReadFile(cfg.CredsPath)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("read creds file %s: %w", cfg.CredsPath, err)
 		}
 		return tokenSourceFromJSON(ctx, data, scopes)
 	}
@@ -52,7 +53,7 @@ func NewTokenSource(ctx context.Context, cfg Config) (oauth2.TokenSource, error)
 func tokenSourceFromJSON(ctx context.Context, data []byte, scopes []string) (oauth2.TokenSource, error) {
 	creds, err := google.CredentialsFromJSON(ctx, data, scopes...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("credentials from JSON: %w", err)
 	}
 	return creds.TokenSource, nil
 }
